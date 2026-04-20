@@ -199,6 +199,22 @@ int tree_from_index(ObjectID *id_out) {
         free(index);
         return -1;
     }
+    if (index->count == 0) {
+        Tree empty;
+        empty.count = 0;
+
+        void *data;
+        size_t len;
+        if (tree_serialize(&empty, &data, &len) != 0) {
+            free(index);
+            return -1;
+        }
+
+    int rc = object_write(OBJ_TREE, data, len, id_out);
+    free(data);
+    free(index);
+    return rc;
+}
 
     IndexEntry **sorted = malloc(index->count * sizeof(IndexEntry *));
     if (!sorted) { free(index); return -1; }
