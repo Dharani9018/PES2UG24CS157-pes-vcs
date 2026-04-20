@@ -134,6 +134,49 @@ static int write_tree_recursive(IndexEntry **entries, int count,
     Tree tree;
     tree.count = 0;
 
+    int i = 0;
+    while (i < count) {
+        const char *rel = entries[i]->path + strlen(prefix);
+        char *slash = strchr(rel, '/');
+
+        if (slash == NULL) {
+            // File
+            TreeEntry *te = &tree.entries[tree.count];
+            snprintf(te->name, sizeof(te->name), "%s", rel);
+            te->mode = entries[i]->mode;
+            te->hash = entries[i]->hash;
+            tree.count++;
+            i++;
+        } else {
+            // Directory
+            size_t dir_len = (size_t)(slash - rel);
+            char dir_name[256];
+            memcpy(dir_name, rel, dir_len);
+            dir_name[dir_len] = '\0';
+
+            char new_prefix[1024];
+            snprintf(new_prefix, sizeof(new_prefix), "%s%s/", prefix, dir_name);
+            size_t new_prefix_len = strlen(new_prefix);
+
+            int j = i;
+            while (j < count &&
+                   strncmp(entries[j]->path, new_prefix, new_prefix_len) == 0) {
+                j++;
+            }
+
+            ObjectID sub_id;
+            if (write_tree_recursive(entries + i, j - i, new_prefix, &sub_id) != 0)
+                return -1;
+
+            TreeEntry *te = &tree.entries[tree.count];
+            snprintf(te->name, sizeof(te->name), "%s", dir_name);
+            te->mode = MODE_DIR;
+            te->hash = sub_id;
+            tree.count++;
+
+            i = j;
+        }
+    }
 
     void *tree_data;
     size_t tree_len;
@@ -143,7 +186,6 @@ static int write_tree_recursive(IndexEntry **entries, int count,
     free(tree_data);
     return rc;
 }
-
 int tree_from_index(ObjectID *id_out) {
     // TODO: Implement recursive tree building
     // (See Lab Appendix for logical steps)
