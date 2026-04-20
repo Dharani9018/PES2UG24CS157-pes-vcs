@@ -24,6 +24,11 @@
 #include <unistd.h>
 #include <dirent.h>
 
+static int compare_entries_by_path(const void *a, const void *b) {
+    return strcmp(((const IndexEntry *)a)->path,
+                  ((const IndexEntry *)b)->path);
+}
+
 // ─── PROVIDED ────────────────────────────────────────────────────────────────
 
 // Find an index entry by path (linear scan).
@@ -177,12 +182,31 @@ int index_load(Index *index) {
 //
 // Returns 0 on success, -1 on error.
 int index_save(const Index *index) {
-    // TODO: Implement atomic index saving
-    // (See Lab Appendix for logical steps)
-    (void)index;
-    return -1;
-}
+    Index copy = *index;
+    qsort(copy.entries, copy.count, sizeof(IndexEntry), compare_entries_by_path);
 
+    char tmp_path[] = INDEX_FILE ".tmp";
+    FILE *f = fopen(tmp_path, "w");
+    if (!f) return -1;
+
+    for (int i = 0; i < copy.count; i++) {
+        char hex[HASH_HEX_SIZE + 1];
+        hash_to_hex(&copy.entries[i].hash, hex);
+
+        fprintf(f, "%o %s %lu %u %s\n",
+                copy.entries[i].mode,
+                hex,
+                (unsigned long)copy.entries[i].mtime_sec,
+                (unsigned int)copy.entries[i].size,
+                copy.entries[i].path);
+    }
+
+    fflush(f);
+    fsync(fileno(f));
+    fclose(f);
+
+    return rename(tmp_path, INDEX_FILE);
+}
 // Stage a file for the next commit.
 //
 // HINTS - Useful functions and syscalls:
