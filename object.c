@@ -122,7 +122,51 @@ int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out
         free(full);
         return 0;
     }
+    // Step 5: Create shard directory
+    char hex[HASH_HEX_SIZE + 1];
+    hash_to_hex(id_out, hex);
+
+    char shard_dir[256];
+    snprintf(shard_dir, sizeof(shard_dir), "%s/%.2s", OBJECTS_DIR, hex);
+    mkdir(shard_dir, 0755);
+
+    // Step 6: Build final and temp paths
+    char final_path[512];
+    object_path(id_out, final_path, sizeof(final_path));
+
+    // temp buffer is larger to guarantee no truncation
+    char temp[520];
+    snprintf(temp, sizeof(temp), "%s.tmp", final_path);
+
+    // Step 7: Write to temp file
+    int fd = open(temp, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+    if (fd < 0) { free(full); return -1; }
+
+    ssize_t written = write(fd, full, full_len);
     free(full);
+    if (written < 0 || (size_t)written != full_len) {
+        close(fd);
+        unlink(temp);
+        return -1;
+    }
+
+    // Step 8: fsync temp file
+    fsync(fd);
+    close(fd);
+
+    // Step 9: Atomic rename
+    if (rename(temp, final_path) != 0) {
+        unlink(temp);
+        return -1;
+    }
+
+    // Step 10: fsync shard directory
+    int dir_fd = open(shard_dir, O_RDONLY);
+    if (dir_fd >= 0) {
+        fsync(dir_fd);
+        close(dir_fd);
+    }
+
     return 0;
 }
 // Read an object from the store.
