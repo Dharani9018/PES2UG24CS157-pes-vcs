@@ -224,7 +224,7 @@ int index_add(Index *index, const char *path) {
     long file_size = ftell(f);
     fseek(f, 0, SEEK_SET);
 
-    uint8_t *buf = malloc((size_t)file_size);
+    uint8_t *buf = malloc((size_t)file_size + 1);
     if (!buf) { fclose(f); return -1; }
 
     if (file_size > 0 &&
