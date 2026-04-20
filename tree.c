@@ -130,16 +130,19 @@ int tree_serialize(const Tree *tree, void **data_out, size_t *len_out) {
 //
 // Returns 0 on success, -1 on error.
 static int write_tree_recursive(IndexEntry **entries, int count,
-                                 const char *prefix, ObjectID *id_out) {
+                                 const char *prefix, ObjectID *id_out) 
+{
     Tree tree;
     tree.count = 0;
 
     int i = 0;
-    while (i < count) {
+    while (i < count)
+    {
         const char *rel = entries[i]->path + strlen(prefix);
         char *slash = strchr(rel, '/');
 
-        if (slash == NULL) {
+        if (slash == NULL)
+        {
             // File
             TreeEntry *te = &tree.entries[tree.count];
             snprintf(te->name, sizeof(te->name), "%s", rel);
@@ -147,7 +150,9 @@ static int write_tree_recursive(IndexEntry **entries, int count,
             te->hash = entries[i]->hash;
             tree.count++;
             i++;
-        } else {
+        }
+        else
+        {
             // Directory
             size_t dir_len = (size_t)(slash - rel);
             char dir_name[256];
@@ -160,7 +165,8 @@ static int write_tree_recursive(IndexEntry **entries, int count,
 
             int j = i;
             while (j < count &&
-                   strncmp(entries[j]->path, new_prefix, new_prefix_len) == 0) {
+                   strncmp(entries[j]->path, new_prefix, new_prefix_len) == 0) 
+            {
                 j++;
             }
 
