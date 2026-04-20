@@ -210,11 +210,17 @@ int object_read(const ObjectID *id, ObjectType *type_out, void **data_out, size_
         free(buf); fclose(f); return -1;
     }
     fclose(f);
-
+    
+    ObjectID computed;
+    compute_hash(buf, (size_t)file_size, &computed);
+    if (memcmp(computed.hash, id->hash, HASH_SIZE) != 0) {
+        free(buf);
+        return -1;
+    }
     // Find header/data split
     uint8_t *null_pos = memchr(buf, '\0', (size_t)file_size);
     if (!null_pos) { free(buf); return -1; }
-
+    
     // Parse type
     if (strncmp((char *)buf, "blob ", 5) == 0)        *type_out = OBJ_BLOB;
     else if (strncmp((char *)buf, "tree ", 5) == 0)   *type_out = OBJ_TREE;
