@@ -186,9 +186,31 @@ static int write_tree_recursive(IndexEntry **entries, int count,
     free(tree_data);
     return rc;
 }
+
+static int compare_index_ptrs_by_path(const void *a, const void *b) {
+    return strcmp((*(IndexEntry **)a)->path, (*(IndexEntry **)b)->path);
+}
+
 int tree_from_index(ObjectID *id_out) {
-    // TODO: Implement recursive tree building
-    // (See Lab Appendix for logical steps)
-    (void)id_out;
-    return -1;
+    Index *index = malloc(sizeof(Index));
+    if (!index) return -1;
+
+    if (index_load(index) != 0) {
+        free(index);
+        return -1;
+    }
+
+    IndexEntry **sorted = malloc(index->count * sizeof(IndexEntry *));
+    if (!sorted) { free(index); return -1; }
+
+    for (int i = 0; i < index->count; i++)
+        sorted[i] = &index->entries[i];
+
+    qsort(sorted, index->count, sizeof(IndexEntry *), compare_index_ptrs_by_path);
+
+    int rc = write_tree_recursive(sorted, index->count, "", id_out);
+
+    free(sorted);
+    free(index);
+    return rc;
 }
